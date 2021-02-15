@@ -122,6 +122,10 @@ function LoadInstructions() {
     Message.className = "Message";
     Message.style.width = "40%";
     MessageContainer.appendChild(Message);
+    MessageText = document.createElement("p");
+    MessageText.className = "MessageText";
+    MessageText.innerHTML = "I guess I have to update this again..";
+    Message.appendChild(MessageText);
     CloseButton = document.createElement("span");
     CloseButton.className= "close";
     CloseButton.innerHTML = "&times;"
