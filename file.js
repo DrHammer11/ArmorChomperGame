@@ -92,12 +92,12 @@ if (SettingData == null) {
 currentVolume = SettingData[0];
 turntime = (18.5*SettingData[1])+150;
 SoundArray = [loss, win, ZombieTurnTheme, PlantTurnTheme, MenuTheme];
-News = "Version 1.7.0 is out now, there's not much besides a new playable character<br><br> \
+News = "Version 1.7.1 is out now, there's not much besides a new playable character<br><br> \
 New features:<br> \
 A new plant to play as: Peashooter!<br>\
 When you start a new game, you can now play as peashooter. Peashooter is more of a ranged attacker, so now you can vanquish all of those zombies without ever having to go near them!<br>\
 You can now view the history of the console so that you can fully see what happened or look back on a previous turn.<br>\
-Plants and zombies now face backwards when attacking downwards.<br>\
+Plants and zombies now face backwards when attacking downwards and face fowards when attacking upwards.<br>\
 <br>\
 Bug fixes:<br>\
 Fixed bug where zombie would rarely not move.<br>\
@@ -159,7 +159,7 @@ function LoadNew() {
     Message.appendChild(CloseButton);
     MessageHeader = document.createElement("p");
     MessageHeader.className = "MessageHeader";
-    MessageHeader.innerHTML = "What's new in Version 1.7.0";
+    MessageHeader.innerHTML = "What's new in Version 1.7.1";
     Message.appendChild(MessageHeader);
     MessageText = document.createElement("p");
     MessageText.className = "MessageText";
@@ -410,6 +410,7 @@ function StartGame() { /*add lawn background so chomper is defending house*/
     ctb.onclick=function(){ViewConsoleHistory()};
     wc.appendChild(ctb);
     consolemessages = [];
+    ConsoleHistory = [];
     cps = document.getElementById("currentPlant");
     wc.style.width = window.innerWidth.toString()+"px";
     wc.style.height = (window.innerWidth/(1440/732)).toString()+"px";
@@ -695,7 +696,7 @@ function DoDamage(zombie, damageprojectile) {
             CreateConsoleText("Armor Chomper has ate "+zombie.name+".");
             AC.chewing = true;
             AC.chewingtime = zombie.chewingtime+1;
-            fighterPhysArray[fighterArray.indexOf(AC)].src = "chewy.gif";
+            fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "chewy.gif";
             RemoveZombie(zombie);
             if (!(CheckForWin())) {
                 CreateConsoleText("Armor Chomper will be chewing for "+(AC.chewingtime-1)+" turn(s).");
@@ -742,7 +743,7 @@ function DoDamage(zombie, damageprojectile) {
                                     RemoveZombie(ZombieArray[z]);
                                     zombiedead = true;
                                     CheckForWin();
-                                    return;
+                                    break;
                                 }
                                 else if (randomint(0, 100) < damageprojectile.stunChance) {
                                     CreateConsoleText(currentPlant.name+" has stunned "+ZombieArray[z].name+" for one turn.") 
@@ -1168,8 +1169,8 @@ function ResetGame() {
     // Screendoor.health = 100;
     // Newspaper.health = 50;
     // MadNews.health = 125;
-    ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, Gargantuar, FootballZomb, Screendoor, Newspaper]; 
-    //ZombieArray = [Screendoor];
+   //ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, Gargantuar, FootballZomb, Screendoor, Newspaper]; 
+    ZombieArray = [Imp];
     currentPlant.coords = [2,2]; 
     availablecoords = [];
     for (x=4; x<10; x++) {
@@ -1644,6 +1645,10 @@ RageBite = new AttackType();
 RageBite.name = "Angry Bite"
 RageBite.damage = 50;
 RageBite.range = 1;
+Crush = new AttackType();
+Crush.name = "Crush";
+Crush.damage = 125;
+Crush.range = 1;
 //zombies 
 Browncoat = new Fighter();
 Browncoat.name = "Browncoat Zombie";
@@ -1747,6 +1752,15 @@ Newspaper.height = "28%";
 Newspaper.underShield = clone(MadNews);
 Newspaper.attacks.push(Bite,Paper);
 Newspaper.aliveSprite = "Newspaper.PNG";
+// Disco = new Fighter();
+// Disco.name = "Disco Zombie";
+// Disco.health = 150;
+// Disco.permhealth = 150;
+// Disco.powerLevel = 8;
+// Disco.height = "26%";
+// Disco.attacks.push(Backup,Bite);
+// Disco.aliveSprite = "DiscoZombie.PNG";
+ //*add disco zombie
 griditemarray = [];
 phygriditems = [];
 ZombieArray = [];
@@ -1912,6 +1926,9 @@ function SwitchAD() {
     if (CD == 1) {
         fighterPhysArray[fighterArray.indexOf(currentPlant)].style.transform = "scaleX(-1)";
     }
+    else if (CD == 3) {
+        fighterPhysArray[fighterArray.indexOf(currentPlant)].style.transform = "scaleX(1)";
+    }
     phygriditems = [];
     griditemarray = [];
     currentx = 0
@@ -2066,13 +2083,13 @@ function TestAttack(zombie, attack) {
         if (hitarea) {
             if (griditemarray[ia].sprite == "GreenTile.PNG" && attack.TimeUntilReady == 0) {
                 ZD = TZD;
-                if (ZD == 0) {
+                if (ZD == 0 || ZD == 2) {
                     if (fighterPhysArray[fighterArray.indexOf(zombie)].style.transform == "scaleX(-1)") {
                         fighterPhysArray[fighterArray.indexOf(zombie)].style.transform = "scaleX(1)";
                         zombie.wb += 0.5;
                     }
                 }
-                else if (ZD == 1 || ZD == 2) {
+                else if (ZD == 1 || ZD == 3) {
                     if (fighterPhysArray[fighterArray.indexOf(zombie)].style.transform == "scaleX(1)") {
                         fighterPhysArray[fighterArray.indexOf(zombie)].style.transform = "scaleX(-1)";
                         zombie.wb -= 0.5;
