@@ -1169,8 +1169,8 @@ function ResetGame() {
     // Screendoor.health = 100;
     // Newspaper.health = 50;
     // MadNews.health = 125;
-   //ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, Gargantuar, FootballZomb, Screendoor, Newspaper]; 
-    ZombieArray = [Imp];
+    ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, Gargantuar, FootballZomb, Screendoor, Newspaper]; 
+    //ZombieArray = [Imp];
     currentPlant.coords = [2,2]; 
     availablecoords = [];
     for (x=4; x<10; x++) {
