@@ -74,8 +74,18 @@ function MusicFade(soundA,soundB) {
     }
     var fade = setInterval(slowfade, fadetime/fadeframes);
 }
+function StopAllSounds() {
+    for (s in SoundArray) {
+        SoundArray[s].stop();
+        SoundArray[s].reset();
+        SoundArray[s].sound.volume = currentVolume;
+    }
+}
 loss = new sound("Loss.mp3"); 
 win = new sound("Win.mp3");
+Ultwin = new sound("BossWin.mp3");
+LogoSound = new sound("EvilLaugh.mp3");
+FightSound = new sound("FightSounds.mp3"); 
 ZombieTurnTheme = new sound("ZombieTheme.mp3");
 PlantTurnTheme = new sound("PlantTheme.mp3");
 MenuTheme = new sound("MenuTheme.mp3");
@@ -85,26 +95,41 @@ PlantTurnTheme.loop();
 ZombieTurnTheme.loop();
 CriticalTheme.loop();
 CriticalStage = false;
+IsBossWave = false;
+TheBossWave = "";
 SettingData = loadData("SettingData");
 if (SettingData == null) {
     SettingData = [1,(1500-150)/18.5]
 }
 currentVolume = SettingData[0];
 turntime = (18.5*SettingData[1])+150;
-SoundArray = [loss, win, ZombieTurnTheme, PlantTurnTheme, MenuTheme];
-News = "Version 1.7.1 is out now, there's not much besides a new playable character<br><br> \
+SoundArray = [loss, win, Ultwin, LogoSound, FightSound, ZombieTurnTheme, PlantTurnTheme, MenuTheme];
+News = "Version 1.8.0 is out now, I think it's probably the biggest update yet<br><br> \
 New features:<br> \
-A new plant to play as: Peashooter!<br>\
-When you start a new game, you can now play as peashooter. Peashooter is more of a ranged attacker, so now you can vanquish all of those zombies without ever having to go near them!<br>\
-You can now view the history of the console so that you can fully see what happened or look back on a previous turn.<br>\
-Plants and zombies now face backwards when attacking downwards and face fowards when attacking upwards.<br>\
+ Boss waves! Every 5 waves, you have to fight a boss wave. Boss waves are uniquely designed waves with new zombies that are designed to be extra challenging! Can you beat all 5 boss waves?<br>\
+New zombie for normal waves: Disco Zombie! Disco Zombie is to replace Gargantuar, as Gargantuar is now a boss zombie and will no longer appear in normal waves.<br>\
+Zombie AI updated again, zombies will now use expert coordination and highly complex tactical techniques in order to defeat you.<br>\
+A secret interaction happens if you do a certain thing to a certain zombie - can you find out what it is?<br>\
+Other small changes that I won’t bother mentioning.<br>\
 <br>\
 Bug fixes:<br>\
-Fixed bug where zombie would rarely not move.<br>\
-Fixed bug where shielded zombies lose their metal health icon.<br>\
+Fixed bug where chomper could move twice in one turn if he ate a zombie.<br>\
+Fixed bug where player could skip chomper’s chewing phase by reloading the game.<br>\
+Fixed bug where you would not be able to move if you tried to escape the grid.<br>\
+Fixed bug where zombies would not visually rotate.<br>\
+Fixed bug where attack menu would not automatically close after usage if you had another menu open.<br>\
 <br>\
 Balance changes:<br>\
-Gangsta Zombie’s gun now does 20 damage per bullet instead of 25.<br>";
+Peashooter health increased from 125 to 150<br>\
+Peashooter pea accuracy increased from 95% to 100%<br>\
+Pea Gatling cooldown time decreased from 3 turns to 2 turns<br>\
+Pea Gatling accuracy increased from 90% chance for each pea to hit to 95% chance for each pea to hit<br>\
+Armor Chomper’s goop now does splash damage, but at the cost of a slower cooldown.<br>\
+Armor Chomper seed spit accuracy increased from 85% chance for each seed to hit to 90% chance for each seed to hit<br>\
+Armor Chomper goop accuracy increased from 95% to 100%<br>\
+Newspaper Zombie is now more common.<br>\
+Gargantuar now has a new ability: Phone Friends.<br>\
+Gargantuar now has 400 health instead of 350.<br>";
 function RemoveBlocker() {
     wc.removeChild(document.getElementById("MenuBlocker"))
     wc.removeChild(document.getElementById("MenuLoader"))
@@ -133,10 +158,9 @@ function LoadInstructions() {
         document.getElementById("LoadGame").remove();
     }
     Message.appendChild(CloseButton);
-    TrollFace = document.createElement("img");
+    TrollFace = document.createElement("img"); 
     TrollFace.src = "Instructions.PNG";
     TrollFace.style.width = "100%";
-    TrollFace.style.height = "auto";
     Message.appendChild(TrollFace);
 }
 function LoadNew() {
@@ -159,7 +183,7 @@ function LoadNew() {
     Message.appendChild(CloseButton);
     MessageHeader = document.createElement("p");
     MessageHeader.className = "MessageHeader";
-    MessageHeader.innerHTML = "What's new in Version 1.7.1";
+    MessageHeader.innerHTML = "What's new in Version 1.8.0";
     Message.appendChild(MessageHeader);
     MessageText = document.createElement("p");
     MessageText.className = "MessageText";
@@ -209,7 +233,7 @@ function LoadSettings() {
     }
     MessageText = document.createElement("p");
     MessageText.className = "MessageText";
-    MessageText.innerHTML = "<br>Zombie's Turn Time<br>";
+    MessageText.innerHTML = "<br>Zombie's Turn Time (Use this to make the game faster or slower)<br>";
     Message.appendChild(MessageText);
     TurnSlider = document.createElement("input");
     TurnSlider.className = "slider";
@@ -225,6 +249,7 @@ function LoadSettings() {
     BTM.onclick = function() {
         currentVolume = VolumeSlider.value/100;
         turntime = (18.5*TurnSlider.value)+150;
+        UpdateData([currentVolume,(turntime-150)/18.5],"SettingData")
         BackToMenu();
     }
     Message.appendChild(BTM);
@@ -234,22 +259,18 @@ function BackToMenu() {
     if (HighScore == null) {
         HighScore = "No wave yet";
     }
-    CriticalTheme.stop();
-    ZombieTurnTheme.stop();
-    PlantTurnTheme.stop();
-    CriticalTheme.reset();
-    ZombieTurnTheme.reset();
-    PlantTurnTheme.reset();
-    MenuTheme.reset();
+    StopAllSounds();
     MenuTheme.play();
     IsPlayerTurn = false;
     CanMove = false;
     CriticalStage = false;
+    IsBossWave = false;
+    TheBossWave = "";
     wc = document.getElementById("EverythingFitter");
     wc.innerHTML = '';
     vc = document.createElement("div");
     vc.id="VersionCount";
-    vc.innerHTML="Beta Version 1.7.0";
+    vc.innerHTML="Beta Version 1.8.0";
     wc.appendChild(vc);
     tc = document.createElement("div");
     tc.id="TitleContainer";
@@ -350,7 +371,6 @@ function ChoosePlant() {
     }
 }
 function StartGame() { /*add lawn background so chomper is defending house*/
-    SoundArray = [loss, win, ZombieTurnTheme, PlantTurnTheme, MenuTheme];
     for (theme in SoundArray) {
         theme = SoundArray[theme];
         theme.sound.volume = currentVolume;
@@ -495,7 +515,7 @@ function StartGame() { /*add lawn background so chomper is defending house*/
         abilitybuttons.style.display = "none";
         IsPlayerTurn = false;
         CanMove = false;
-        if (!(CriticalStage)) {
+        if (!(CriticalStage) && !(IsBossWave)) {
             ZombieTurnTheme.sound.currentTime = PlantTurnTheme.sound.currentTime;
             MusicFade(PlantTurnTheme,ZombieTurnTheme);
         }
@@ -530,6 +550,7 @@ function StartGame() { /*add lawn background so chomper is defending house*/
         zombi.src = ZombieArray[z].aliveSprite;
         wc.appendChild(zombi);
         fighterPhysArray.push(zombi);
+        zombi.style.transform = "scaleX(1)";
         var zhealth = document.createElement("p")
         var zhealthbar = document.createElement("img")
         if (ZombieArray[z].underShield != "") {
@@ -580,11 +601,11 @@ function CreateModal(modalID,modalheader,modaltext,modalimage,modalbuttons) { //
         Message.className = "Message";
         Message.style.width = "30%";
         MessageContainer.appendChild(Message);
-        CloseButton = document.createElement("span");
-        CloseButton.className= "close";
-        CloseButton.innerHTML = "&times;"
+        SpecialButton = document.createElement("span");
+        SpecialButton.className= "close";
+        SpecialButton.innerHTML = "&times;"
         if (CanMove) {
-            CloseButton.onclick = function() {
+            SpecialButton.onclick = function() {
                 CanMove = true;
                 updategrid();
                 UpdateTurnCount();
@@ -592,13 +613,13 @@ function CreateModal(modalID,modalheader,modaltext,modalimage,modalbuttons) { //
             }
         }
         else {
-            CloseButton.onclick = function() {
+            SpecialButton.onclick = function() {
                 updategrid();
                 document.getElementById("atakmodal").remove();
             }
         }
         CanMove = false;
-        Message.appendChild(CloseButton);
+        Message.appendChild(SpecialButton);
         MessageImage = document.createElement("img");
         MessageImage.src = modalimage;
         Message.appendChild(MessageImage);
@@ -652,7 +673,10 @@ function RemoveZombie(zombie) {
         USZ.coords = zombie.coords;
         ZombieArray.push(USZ);
         for (attack in USZ.attacks) {
-            USZ.attacks[attack].TimeUntilReady = 0;
+            USZ.attacks[attack].TimeUntilReady = USZ.attacks[attack].STUP;
+        }
+        for (support in USZ.supports) {
+            USZ.supports[support].TimeUntilReady = USZ.supports[support].STUP;
         }
         prevzposes.push(USZ.coords)
         CanZAbility.push(true);
@@ -662,6 +686,7 @@ function RemoveZombie(zombie) {
         zombi.src = USZ.aliveSprite;
         wc.appendChild(zombi);
         fighterPhysArray.push(zombi);
+        zombi.style.transform = "scaleX(1)";
         var zhealth = document.createElement("p")
         var zhealthbar = document.createElement("img")
         if (USZ.underShield != "") {
@@ -690,16 +715,16 @@ function DoDamage(zombie, damageprojectile) {
     if (damageprojectile.name == Swallow.name) {
         if (zombie.canBeEaten) {
             CanAbility = [false,false];
-            CanMove = true; 
             zombiedead = true;
             UpdateTurnCount();
             CreateConsoleText("Armor Chomper has ate "+zombie.name+".");
-            AC.chewing = true;
-            AC.chewingtime = zombie.chewingtime+1;
+            currentPlant.chewing = true;
+            currentPlant.chewingtime = zombie.chewingtime+1;
             fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "chewy.gif";
+            currentPlant.allergy = zombie.allergy;
             RemoveZombie(zombie);
             if (!(CheckForWin())) {
-                CreateConsoleText("Armor Chomper will be chewing for "+(AC.chewingtime-1)+" turn(s).");
+                CreateConsoleText("Armor Chomper will be chewing for "+(currentPlant.chewingtime-1)+" turn(s).");
             }
         }
         else {
@@ -716,12 +741,12 @@ function DoDamage(zombie, damageprojectile) {
         CreateConsoleText(currentPlant.name+" has hit "+zombie.name+" for "+ damageprojectile.damage+" damage.",true);
         zombie.health -= damageprojectile.damage;
         if (zombie.health <= 0) {
-            CreateConsoleText(currentPlant.name+" has vanquished "+zombie.name+".")
+            CreateConsoleText(currentPlant.name+" has vanquished "+zombie.name+".") 
             RemoveZombie(zombie);
             zombiedead = true;
             CheckForWin();
         }
-        else if (randomint(0, 100) < damageprojectile.stunChance) {
+        else if (Math.random()*100 < damageprojectile.stunChance) {
             CreateConsoleText(currentPlant.name+" has stunned "+zombie.name+" for one turn.") 
             fighterPhysArray[fighterArray.indexOf(zombie)].src = damageprojectile.name+(fighterPhysArray[fighterArray.indexOf(zombie)].src).split("/")[(fighterPhysArray[fighterArray.indexOf(zombie)].src).split("/").length-1]
             zombie.stunned = true;
@@ -745,7 +770,7 @@ function DoDamage(zombie, damageprojectile) {
                                     CheckForWin();
                                     break;
                                 }
-                                else if (randomint(0, 100) < damageprojectile.stunChance) {
+                                else if (Math.random()*100 < damageprojectile.stunChance) {
                                     CreateConsoleText(currentPlant.name+" has stunned "+ZombieArray[z].name+" for one turn.") 
                                     fighterPhysArray[fighterArray.indexOf(ZombieArray[z])].src = damageprojectile.name+(fighterPhysArray[fighterArray.indexOf(ZombieArray[z])].src).split("/")[(fighterPhysArray[fighterArray.indexOf(ZombieArray[z])].src).split("/").length-1]
                                     ZombieArray[z].stunned = true;
@@ -789,7 +814,7 @@ function FireProjectile() {
         currentProjectile.shotsLeft = currentProjectile.shots;
         missedshots = 0;
         for (shot = 0; shot < currentProjectile.shots; shot++) {
-            if (randomint(0, 100) > currentProjectile.accuracy) {
+            if (Math.random()*100 > currentProjectile.accuracy) {
                 missedshots += 1;
                 currentProjectile.shotsLeft -= 1;
                 if (currentProjectile.shots == 1) {
@@ -847,7 +872,7 @@ function FireProjectile() {
         updategrid();
         UpdateTurnCount();
     }
-    CloseButton.click();     
+    SpecialButton.click();     
 }
 function SaveGame() {
     //what to save: 
@@ -872,8 +897,9 @@ function SaveGame() {
     //what wave you're on
     //posititon in the music
     //crtiical theme or not
+    //boss wave or not
     //console messages
-    UpdateData([difficultylevel, PlantTurnTheme.sound.currentTime, CriticalStage, ConsoleHistory],"MiscData");
+    UpdateData([difficultylevel, PlantTurnTheme.sound.currentTime, CriticalStage, TheBossWave, ConsoleHistory],"MiscData");
 }
 function LoadGame() {
     PlantData = loadData("PlantData");
@@ -908,8 +934,16 @@ function LoadGame() {
         return
     }
     currentPlant = PlantData[5];
-    SoundArray = [loss, win, ZombieTurnTheme, PlantTurnTheme, MenuTheme];
-    if (MiscData[2]) {
+    if (MiscData[3] != "") {
+        IsBossWave = true;
+        TheBossWave = MiscData[3];
+        BossTheme = new sound(TheBossWave.theme);
+        SoundArray.push(BossTheme); 
+        BossTheme.loop();
+        BossTheme.reset();
+        BossTheme.play();
+    }
+    else if (MiscData[2]) {
         CriticalStage = true;
         SoundArray.push(CriticalTheme);
         CriticalTheme.reset();
@@ -1062,7 +1096,7 @@ function LoadGame() {
         abilitybuttons.style.display = "none";
         IsPlayerTurn = false;
         CanMove = false;
-        if (!(CriticalStage)) {
+        if (!(CriticalStage) && !(IsBossWave)) {
             ZombieTurnTheme.sound.currentTime = PlantTurnTheme.sound.currentTime; 
             MusicFade(PlantTurnTheme,ZombieTurnTheme);
         }
@@ -1078,7 +1112,12 @@ function LoadGame() {
         ZombieTurn(0);
     }
     difficultylevel = MiscData[0];
-    document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel;
+    if (IsBossWave) {
+        document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel+" (Boss Wave)";
+    }
+    else {
+        document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel;
+    }
     ZombieArray = ZombieData[0]; 
     currentPlant.coords = PlantData[1]; 
     prevzposes = [];
@@ -1086,7 +1125,7 @@ function LoadGame() {
     zhealthbararray = [];
     fighterPhysArray = [cps];
     ctc.innerHTML = "";
-    ConsoleHistory = MiscData[3];
+    ConsoleHistory = MiscData[4];
     planthealth.innerHTML = Object.assign(PlantData[2]);
     CanZAbility = ZombieData[1];
     for (z in ZombieArray) {
@@ -1098,6 +1137,7 @@ function LoadGame() {
         zombi.src = ZombieArray[z].aliveSprite;
         wc.appendChild(zombi);
         fighterPhysArray.push(zombi);
+        zombi.style.transform = "scaleX(1)";
         var zhealth = document.createElement("p")
         var zhealthbar = document.createElement("img")
         if (ZombieArray[z].underShield != "") {
@@ -1147,8 +1187,6 @@ function LoadGame() {
     updategrid();
 }
 function ResetGame() {
-    ZTS = [];
-    CPL = 0;
     difficultylevel += 1;
     ConsoleHistory.push("~ Wave "+difficultylevel+" ~");
     if (loadData("HighScore") == null) {
@@ -1157,38 +1195,68 @@ function ResetGame() {
     if (loadData("HighScore").replace(/\D/g,'') < difficultylevel) {
         UpdateData("Wave "+difficultylevel.toString(),"HighScore");
     }
-    document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel;
-    // Browncoat.health = 50;
-    // Conehead.health = 125;
-    // Imp.health = 25;
-    // Buckethead.health = 175;
-    // Yeti.health = 150;
-    // GunZomb.health = 100;
-    // Gargantuar.health = 350;
-    // FootballZomb.health = 200;
-    // Screendoor.health = 100;
-    // Newspaper.health = 50;
-    // MadNews.health = 125;
-    ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, Gargantuar, FootballZomb, Screendoor, Newspaper]; 
-    //ZombieArray = [Imp];
+    if (difficultylevel%5 == 0) {
+        ConsoleHistory.push("~ Boss Wave ~");
+        document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel+" (Boss Wave)";
+        IsBossWave = true;
+        ABW = [];
+        for (bw in BossWaves) {
+            if (BossWaves[bw].availablewaves.includes(difficultylevel)) {
+                ABW.push(BossWaves[bw]);
+            }
+        }
+        CBW = ABW[Math.floor(Math.random() * ABW.length)];
+        TheBossWave = CBW;
+        ZombieArray = CBW.zombies;
+        availablecoords = CBW.availablecoords;
+        if (CBW.randomizecoords) {
+            ZTS = [];
+            CPL = 0;
+            while (CPL != difficultylevel) {
+                NZ = clone(ZombieArray[Math.floor(Math.random() * ZombieArray.length)])
+                if (!(NZ.powerLevel + CPL > difficultylevel)) {
+                    coordchosen = availablecoords[Math.floor(Math.random() * availablecoords.length)];
+                    NZ.coords = coordchosen;
+                    availablecoords.splice(availablecoords.indexOf(coordchosen), 1);
+                    ZTS.push(NZ);
+                    CPL += NZ.powerLevel;
+                }
+            }
+            ZombieArray = ZTS;
+        }
+        else {
+            for (z in ZombieArray) {
+                ZombieArray[z].coords = availablecoords[z];
+            }
+        }
+    }
+    else {
+        ZTS = [];
+        CPL = 0;
+        ZombieArray = [Browncoat, Conehead, Imp, Buckethead, Yeti, GunZomb, FootballZomb, Screendoor, Newspaper, Disco]; 
+        //ZombieArray = [Disco];
+        availablecoords = [];
+        for (x=4; x<10; x++) {
+            for (y=0; y<5; y++) {
+                availablecoords.push([x,y]);
+            }
+        }
+        while (CPL != difficultylevel) {
+            NZ = clone(ZombieArray[Math.floor(Math.random() * ZombieArray.length)])
+            if (!(NZ.powerLevel + CPL > difficultylevel)) {
+                coordchosen = availablecoords[Math.floor(Math.random() * availablecoords.length)];
+                NZ.coords = coordchosen;
+                availablecoords.splice(availablecoords.indexOf(coordchosen), 1);
+                ZTS.push(NZ);
+                CPL += NZ.powerLevel;
+            }
+        }
+        ZombieArray = ZTS;
+        PlantTurnTheme.reset();
+        PlantTurnTheme.play();
+        document.getElementById("LevelCount").innerHTML = "Wave "+difficultylevel;
+    }
     currentPlant.coords = [2,2]; 
-    availablecoords = [];
-    for (x=4; x<10; x++) {
-        for (y=0; y<5; y++) {
-            availablecoords.push([x,y]);
-        }
-    }
-    while (CPL != difficultylevel) {
-        NZ = clone(ZombieArray[randomint(0,ZombieArray.length-1)])
-        if (!(NZ.powerLevel + CPL > difficultylevel)) {
-            coordchosen = availablecoords[randomint(0, availablecoords.length-1)];
-            NZ.coords = coordchosen;
-            availablecoords.splice(availablecoords.indexOf(coordchosen), 1);
-            ZTS.push(NZ);
-            CPL += NZ.powerLevel;
-        }
-    }
-    ZombieArray = ZTS;
     prevzposes = [];
     zhealtharray = [];
     zhealthbararray = [];
@@ -1198,7 +1266,10 @@ function ResetGame() {
     CanZAbility = [];
     for (z in ZombieArray) {
         for (attack in ZombieArray[z].attacks) {
-            ZombieArray[z].attacks[attack].TimeUntilReady = 0;
+            ZombieArray[z].attacks[attack].TimeUntilReady = ZombieArray[z].attacks[attack].STUP;
+        }
+        for (support in ZombieArray[z].supports) {
+            ZombieArray[z].supports[support].TimeUntilReady = ZombieArray[z].supports[support].STUP;
         }
         ZombieArray[z].health = ZombieArray[z].permhealth;
         prevzposes.push(ZombieArray[z].coords)
@@ -1234,14 +1305,7 @@ function ResetGame() {
     for (attack in currentPlant.attacks) {
         currentPlant.attacks[attack].TimeUntilReady = 0;
     }
-    //ZombieTurnTheme.sound.src = "ZombieTheme.mp3";
-    //PlantTurnTheme.sound.src = "PlantTheme.mp3";
-    for (theme in SoundArray) {
-        theme = SoundArray[theme];
-        theme.sound.volume = currentVolume;
-    }
-    PlantTurnTheme.reset();
-    PlantTurnTheme.play();
+    StopAllSounds();
     IsPlayerTurn = true;
     ConsoleHistory.push("~ Plant's Turn ~");
     CanMove = true;
@@ -1255,26 +1319,132 @@ function ResetGame() {
     currentProjectile = "";
     consolemessages = [];
     abilitybuttons.style.display = "block";
-    SaveGame(); 
     UpdateTurnCount();
     CheckZindexes();
     updategrid();
+    SaveGame(); 
+    if (IsBossWave) {
+        LogoSound.reset();
+        LogoSound.play();
+        Blocker = document.createElement("img"); 
+        Blocker.src = "LogoBackground.gif"; 
+        Blocker.style.width = "100%";
+        Blocker.style.zIndex = 9999;
+        Blocker.style.position = "absolute";
+        wc.appendChild(Blocker);
+        TrollFace = document.createElement("img"); 
+        TrollFace.src = "GunZombies.gif";
+        TrollFace.style.zIndex = 10000;
+        TrollFace.style.width = "50%";
+        TrollFace.style.left = "30%";
+        TrollFace.style.position = "absolute"
+        wc.appendChild(TrollFace);
+        setTimeout(function() {
+            TrollFaces = document.createElement("img"); 
+            TrollFaces.src = "Sunglasses.gif";
+            TrollFaces.style.width = "50%";
+            TrollFaces.style.left = "30%";
+            TrollFaces.style.zIndex = 10000;
+            TrollFaces.style.position = "absolute"
+            wc.appendChild(TrollFaces);
+            setTimeout(function() {
+                TrollFacess = document.createElement("img"); 
+                TrollFacess.src = "GargFall.gif";
+                TrollFacess.style.width = "50%";
+                TrollFacess.style.left = "30%";
+                TrollFacess.style.zIndex = 10000;
+                TrollFacess.style.position = "absolute"
+                wc.appendChild(TrollFacess);
+                setTimeout(function() {
+                    TrollFacesss = document.createElement("img"); 
+                    TrollFacesss.src = "GargSunglasses.gif";
+                    TrollFacesss.style.width = "50%";
+                    TrollFacesss.style.left = "30%";
+                    TrollFacesss.style.zIndex = 10000;
+                    TrollFacesss.style.position = "absolute"
+                    wc.appendChild(TrollFacesss);
+                    setTimeout(function() {
+                        FightSound.reset();
+                        FightSound.play();
+                        wc.removeChild(Blocker)
+                        wc.removeChild(TrollFace)
+                        wc.removeChild(TrollFaces)
+                        wc.removeChild(TrollFacess)
+                        wc.removeChild(TrollFacesss)
+                        FB = document.createElement("img"); 
+                        FB.src = "FightingBackground.PNG"; 
+                        FB.style.width = "100%";
+                        FB.style.zIndex = 9999;
+                        FB.style.position = "absolute";
+                        wc.appendChild(FB);
+                        PI = document.createElement("img"); 
+                        PI.src = currentPlant.iconSprite;
+                        PI.style.width = "30%";
+                        PI.style.zIndex = 10000;
+                        PI.style.left = "-10%";
+                        PI.style.position = "absolute";
+                        wc.appendChild(PI);
+                        PT = document.createElement("p");
+                        PT.innerHTML = currentPlant.name;
+                        PT.id = "PlantFightText";
+                        wc.appendChild(PT);
+                        ZI = document.createElement("img"); 
+                        ZI.src = TheBossWave.image;
+                        ZI.style.width = TheBossWave.imageWidth;
+                        ZI.style.zIndex = 10000;
+                        ZI.style.left = TheBossWave.imageLeft;
+                        ZI.style.top = "40%";
+                        ZI.style.position = "absolute";
+                        wc.appendChild(ZI);
+                        ZT = document.createElement("p");
+                        ZT.innerHTML = TheBossWave.name;
+                        ZT.id = "ZombieFightText"
+                        wc.appendChild(ZT);
+                        setTimeout(function() {
+                            wc.removeChild(FB);
+                            wc.removeChild(PI);
+                            wc.removeChild(PT);
+                            wc.removeChild(ZI);
+                            wc.removeChild(ZT);
+                            LoadGame();
+                        }, 4000)
+                    },2500)
+                },500)
+            },150)
+        },200)
+    }
+    else {
+        LoadGame();
+    }
 }
 function CheckForWin() {
     if (ZombieArray.length == 0) {
         abilitybuttons.style.display = "none";
-        if (CriticalStage) {
+        if (IsBossWave) {
+            BossTheme.stop();
+            Ultwin.reset();
+            Ultwin.play();
+        }
+        else if (CriticalStage) {
             CriticalTheme.stop();
+            win.reset();
+            win.play();
         }
         else {
             PlantTurnTheme.stop();
+            win.reset();
+            win.play();
         }
         CriticalTheme.reset();
         ZombieTurnTheme.reset();
         PlantTurnTheme.reset();
+        if (IsBossWave) {
+        }
         IsPlayerTurn = false;
         CanMove = false;
         CriticalStage = false;
+        IsBossWave = false;
+        TheBossWave = "";
         currentPlant.chewing = false;
         CreateConsoleText(currentPlant.name+" has beat wave "+difficultylevel+"!")
         endtext = document.createElement("p");
@@ -1290,8 +1460,6 @@ function CheckForWin() {
             ResetGame();
         }
         wc.appendChild(retrybutton);
-        win.reset();
-        win.play();
         return true;
     }
 }
@@ -1300,7 +1468,10 @@ function CheckForLoss() {
         planthealth.innerHTML = 0;
         wc.removeChild(fighterPhysArray[fighterArray.indexOf(currentPlant)]);
         abilitybuttons.style.display = "none";
-        if (CriticalStage) {
+        if (IsBossWave) {
+            BossTheme.stop();
+        }
+        else if (CriticalStage) {
             CriticalTheme.stop();
         }
         else {
@@ -1312,6 +1483,8 @@ function CheckForLoss() {
         IsPlayerTurn = false;
         CanMove = false;
         CriticalStage = false;
+        IsBossWave = false;
+        TheBossWave = "";
         UpdateData(null, "PlantData");
         //UpdateData(null, "ZombieData");
         //UpdateData(null, "MiscData");
@@ -1339,13 +1512,60 @@ function CheckForLoss() {
         loss.play();
         return true;
     }
-    else if (planthealth.innerHTML <= currentPlant.health/3 && !(CriticalStage)) {
+    else if (planthealth.innerHTML <= currentPlant.health/3 && !(CriticalStage) && !(IsBossWave)) {
         CriticalStage = true;
         CriticalTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
         MusicFade(ZombieTurnTheme, CriticalTheme);
         SoundArray.push(CriticalTheme);
     }
     return false;
+}
+function DeathByAllergy(allergen) {
+    planthealth.innerHTML = 0;
+    wc.removeChild(fighterPhysArray[fighterArray.indexOf(currentPlant)]);
+    abilitybuttons.style.display = "none";
+    if (IsBossWave) {
+        BossTheme.stop();
+    }
+    else if (CriticalStage) {
+        CriticalTheme.stop();
+    }
+    else {
+        ZombieTurnTheme.stop();
+    }
+    CriticalTheme.reset();
+    ZombieTurnTheme.reset();
+    PlantTurnTheme.reset();
+    IsPlayerTurn = false;
+    CanMove = false;
+    CriticalStage = false;
+    IsBossWave = false;
+    TheBossWave = "";
+    UpdateData(null, "PlantData");
+    //UpdateData(null, "ZombieData");
+    //UpdateData(null, "MiscData");
+    currentPlant.aliveSprite = currentPlant.name.replace(/\s/g, '')+".PNG";
+    fighterPhysArray[fighterArray.indexOf(currentPlant)].src = currentPlant.name.replace(/\s/g, '')+".PNG";
+    CreateConsoleText(currentPlant.name+" has died on wave "+difficultylevel+" from a "+allergen+" allergy.")
+    if (loadData("HighScore") == null) {
+        UpdateData("Wave "+difficultylevel.toString(),"HighScore");
+    }
+    if (loadData("HighScore").replace(/\D/g,'') < difficultylevel) {
+        UpdateData("Wave "+difficultylevel.toString(),"HighScore");
+    }
+    endtext = document.createElement("p");
+    endtext.id = "EndText";
+    endtext.innerHTML = "Don't Eat Nuts";
+    wc.appendChild(endtext);
+    retrybutton = document.createElement("button");
+    retrybutton.id = "RetryButton";
+    retrybutton.innerHTML = "Back to Menu";
+    retrybutton.onclick = function() {
+        BackToMenu();
+    }
+    wc.appendChild(retrybutton);
+    loss.reset();
+    loss.play();
 }
 function CreateConsoleText(text, conjoin=false, ATH=true) { 
     ctc = document.getElementById("ConsoleTextContainer");
@@ -1464,8 +1684,19 @@ class AttackType {
         this.accuracy = 101; //percentage
         this.reloadTime = -1; //how many turns it takes until it's ready again
         this.TimeUntilReady = 0;
+        this.STUP = 0;
         this.stunChance = 0; //percent chance to stun
         this.displaySprite = ""; //sprite displaying ability
+    }
+}
+class SupportType {
+    constructor() {
+        this.type = "";
+        this.name = "";
+        this.zombie = ""; //the zombie to summon
+        this.coords = []; //the coordinates of the zombies in comparision to the base zombie
+        this.reloadTime = -1; //how many turns it takes until it's ready again
+        this.TimeUntilReady = 0;
     }
 }
 class Fighter {
@@ -1478,6 +1709,7 @@ class Fighter {
         this.wb = 1; //for garg ang gun
         this.chewing = false; //onlu applies to ac
         this.canBeEaten = true;
+        this.allergy = false;
         this.chewingtime = 1;
         this.underShield = "";
         this.powerLevel = 0; //To compare strengths between fighters
@@ -1485,8 +1717,10 @@ class Fighter {
         this.stunned = false; //if the fighter is stunned or not
         this.coords = []; //x and y positions on the grid
         this.attacks = []; //what attacks this character has
+        this.supports = [];
         this.movesLeft = 0;
         this.aliveSprite = ""; //hmm why is this specified to be alive? unless..
+        this.iconSprite = "";
 
     }
 }
@@ -1501,12 +1735,13 @@ BossWaves = [];
 //armor chomper things
 Goop = new AttackType();
 Goop.name = "Goop";
-Goop.desc = "Spit your slobber at a zombie to cover them in sticky goop that stops them from moving, making them vunerable. <br>Dmg: 25 ∫ Range: 4 spaces ∫ Cooldown: 1 turn ∫ Stuns for 1 turn ∫ 95% chance to hit";
+Goop.desc = "Spit your slobber at a zombie to cover them in sticky goop that stops them from moving or attacking. <br>Direct hit dmg: 25 ∫ Splash dmg: 15 ∫ Splash dmg radius: 3 by 3 ∫ Range: 4 spaces ∫ Cooldown: 2 turns ∫ Stuns for 1 turn";
 Goop.damage = 25;
 Goop.range = 4;
-Goop.accuracy = 95;
-Goop.reloadTime = 1;
+Goop.reloadTime = 2;
 Goop.stunChance = 101;
+Goop.splashDamage = 15;
+Goop.splashRadius = 3;
 Goop.displaySprite = "GoopIcon.PNG";
 Chomp = new AttackType();
 Chomp.name = "Chomp";
@@ -1516,10 +1751,10 @@ Chomp.range = 1;
 Chomp.displaySprite = "ChompIcon.PNG";
 Seed = new AttackType();
 Seed.name = "Seed Spit";
-Seed.desc = "Armor Chomper chews up some seeds and spits them out at the zombies. <br>Dmg: 25 per seed ∫ fires 3 seeds ∫ Range: 6 spaces ∫ Cooldown: 2 turns ∫ 85% chance for each seed to hit";
+Seed.desc = "Armor Chomper chews up some seeds and spits them out at the zombies. <br>Dmg: 25 per seed ∫ fires 3 seeds ∫ Range: 6 spaces ∫ Cooldown: 2 turns ∫ 90% chance for each seed to hit";
 Seed.damage = 25;
 Seed.range = 6;
-Seed.accuracy = 85;
+Seed.accuracy = 90;
 Seed.reloadTime = 2;
 Seed.shots = 3;
 Seed.displaySprite = "SeedSpitIcon.PNG";
@@ -1539,22 +1774,22 @@ AC.height = "30%";
 AC.chewingtime = 0;
 AC.attacks.push(Goop,Chomp,Seed,Swallow); 
 AC.aliveSprite = "ArmorChomper.PNG";
+AC.iconSprite = "PlantLeft.PNG";
 //peashitter
 Pea = new AttackType();
 Pea.name = "Pea";
-Pea.desc = "Peashooter shoots a large pea that splats on a zombie. <br>Dmg: 50 ∫ Range: 4 spaces ∫ No cooldown ∫ 95% chance to hit";
+Pea.desc = "Peashooter shoots a large pea that splats on a zombie. <br>Dmg: 50 ∫ Range: 4 spaces ∫ No cooldown ∫";
 Pea.damage = 50;
 Pea.range = 4;
-Pea.accuracy = 95;
 Pea.displaySprite = "PeaIcon.PNG";
 Gatling = new AttackType();
 Gatling.name = "Pea Gatling";
-Gatling.desc = "Peashooter puts on his gatling helmet and fires a bunch of small peas at the zombies. <br>Dmg: 10 per pea ∫ Fires 10 peas ∫ Range: 7 spaces ∫ Cooldown: 3 turns ∫ 90% chance for each pea to hit";
+Gatling.desc = "Peashooter puts on his gatling helmet and fires a bunch of small peas at the zombies. <br>Dmg: 10 per pea ∫ Fires 10 peas ∫ Range: 7 spaces ∫ Cooldown: 2 turns ∫ 95% chance for each pea to hit";
 Gatling.damage = 10;
 Gatling.range = 7;
-Gatling.accuracy = 90;
+Gatling.accuracy = 95;
 Gatling.shots = 10;
-Gatling.reloadTime = 3;
+Gatling.reloadTime = 2;
 Gatling.displaySprite = "GatlingIcon.PNG";
 Bean = new AttackType();
 Bean.name = "Bean Bomb";
@@ -1568,12 +1803,13 @@ Bean.displaySprite = "BeanIcon.PNG";
 Peashoot = new Fighter();
 Peashoot.plant = true;
 Peashoot.name = "Peashooter";
-Peashoot.health = 125;
+Peashoot.health = 150;
 Peashoot.powerLevel = 9001;
 Peashoot.height = "26%";
 Peashoot.chewingtime = 0;
 Peashoot.attacks.push(Pea,Gatling,Bean); 
 Peashoot.aliveSprite = "Peashooter.PNG";
+Peashoot.iconSprite = "PlantRight.PNG";
 currentPlant = Peashoot;
 plantArray = [AC,Peashoot];
 //zombie attacks /*add ability sounds*/
@@ -1624,7 +1860,7 @@ ImpThrow.name = "Exploding Imp Toss";
 ImpThrow.damage = 35;
 ImpThrow.range = 6;
 ImpThrow.reloadTime = 2;
-ImpThrow.accuracy = 80;
+ImpThrow.accuracy = 85;
 Football = new AttackType();
 Football.name = "Football Fling";
 Football.damage = 25;
@@ -1645,10 +1881,6 @@ RageBite = new AttackType();
 RageBite.name = "Angry Bite"
 RageBite.damage = 50;
 RageBite.range = 1;
-Crush = new AttackType();
-Crush.name = "Crush";
-Crush.damage = 125;
-Crush.range = 1;
 //zombies 
 Browncoat = new Fighter();
 Browncoat.name = "Browncoat Zombie";
@@ -1702,14 +1934,21 @@ Imp.movement = 2;
 Imp.height = "15%";
 Imp.attacks.push(AnkBite)
 Imp.aliveSprite = "Imp.PNG";
+Phone = new SupportType();
+Phone.type = "summon";
+Phone.name = "Phone Friends";
+Phone.zombie = [Browncoat];
+Phone.coords = [[0,-1],[0,1]];
+Phone.reloadTime = 3;
 Gargantuar = new Fighter();
 Gargantuar.name = "Gargantuar";
-Gargantuar.health = 350;
-Gargantuar.permhealth = 350;
+Gargantuar.health = 400;
+Gargantuar.permhealth = 400;
 Gargantuar.powerLevel = 10;
 Gargantuar.height = "40%";
 Gargantuar.wb = 1.6;
 Gargantuar.canBeEaten = false;
+Gargantuar.supports.push(Phone);
 Gargantuar.attacks.push(PoleSmash,ImpThrow);
 Gargantuar.aliveSprite = "Gargantuar.PNG";
 FootballZomb = new Fighter();
@@ -1746,39 +1985,249 @@ Newspaper = new Fighter();
 Newspaper.name = "Newspaper Zombie";
 Newspaper.health = 50;
 Newspaper.permhealth = 50;
-Newspaper.powerLevel = 5;
+Newspaper.powerLevel = 4;
 Newspaper.wb = 1.2;
-Newspaper.height = "28%";
+Newspaper.height = "27%";
 Newspaper.underShield = clone(MadNews);
 Newspaper.attacks.push(Bite,Paper);
 Newspaper.aliveSprite = "Newspaper.PNG";
-// Disco = new Fighter();
-// Disco.name = "Disco Zombie";
-// Disco.health = 150;
-// Disco.permhealth = 150;
-// Disco.powerLevel = 8;
-// Disco.height = "26%";
-// Disco.attacks.push(Backup,Bite);
-// Disco.aliveSprite = "DiscoZombie.PNG";
- //*add disco zombie
+Backup = new Fighter();
+Backup.name = "Backup Dancer";
+Backup.health = 50;
+Backup.permhealth = 50;
+Backup.powerLevel = 1;
+Backup.movement = 1.5;
+Backup.height = "25%";
+Backup.attacks.push(Bite);
+Backup.aliveSprite = "BackupDancer.PNG";
+Dancers = new SupportType();
+Dancers.type = "summon";
+Dancers.name = "Summon Backup";
+Dancers.zombie = [Backup]
+Dancers.coords = [[-1,0],[1,0],[0,-1],[0,1]];
+Dancers.reloadTime = 2;
+Disco = new Fighter();
+Disco.name = "Disco Zombie";
+Disco.health = 150;
+Disco.permhealth = 150;
+Disco.movement = 0.5;
+Disco.powerLevel = 7;
+Disco.height = "28%";
+Disco.attacks.push(Bite);
+Disco.supports.push(Dancers);
+Disco.aliveSprite = "DiscoZombie.PNG";
 griditemarray = [];
 phygriditems = [];
 ZombieArray = [];
-//Boss waves/*add boss waves*/
+//Boss waves
+GrowZombie = new SupportType();
+GrowZombie.type = "summon";
+GrowZombie.name = "Raise Zombie";
+GrowZombie.zombie = [Browncoat,Imp]
+GrowZombie.coords = [[-1,0]];
+GrowZombie.reloadTime = 2;
+CreateImps = new SupportType();
+CreateImps.type = "summon";
+CreateImps.name = "Impish Necromancy";
+CreateImps.zombie = [Imp]
+CreateImps.coords = [[-1,1],[-1,-1]];
+CreateImps.reloadTime = 3;
+GigaPhone = new SupportType();
+GigaPhone.type = "summon";
+GigaPhone.name = "Phone Friends";
+GigaPhone.zombie = [GunZomb];
+GigaPhone.coords = [[-1,0]];
+GigaPhone.reloadTime = 4;
+GigaPhone.STUP = 2;
+Mitosis = new SupportType();
+Mitosis.type = "summon";
+Mitosis.name = "Mitosis";
+Mitosis.coords = [[0,1]];
+Mitosis.reloadTime = 3;
+Mitosis.STUP = 3;
+Mitosis.zombie = ["Parent"];
+Mitosis2 = new SupportType();
+Mitosis2.type = "summon";
+Mitosis2.name = "Mitosis";
+Mitosis2.coords = [[0,-1]];
+Mitosis2.reloadTime = 3;
+Mitosis2.STUP = 3;
+Mitosis2.zombie = ["Parent"];
+Mitosis3 = new SupportType();
+Mitosis3.type = "summon";
+Mitosis3.name = "Mitosis";
+Mitosis3.coords = [[1,0]];
+Mitosis3.reloadTime = 3;
+Mitosis3.STUP = 3;
+Mitosis3.zombie = ["Parent"];
+Mitosis4 = new SupportType();
+Mitosis4.type = "summon";
+Mitosis4.name = "Mitosis";
+Mitosis4.coords = [[-1,0]];
+Mitosis4.reloadTime = 3;
+Mitosis4.STUP = 3;
+Mitosis4.zombie = ["Parent"];
+ImpWand = new AttackType();
+ImpWand.name = "Impish Powers";
+ImpWand.damage = 35;
+ImpWand.range = 2;
+ImpWand.reloadTime = 2;
+Lightning = new AttackType();
+Lightning.name = "Pole Lightning";
+Lightning.damage = 45;
+Lightning.range = 5;
+Lightning.reloadTime = 1;
+NastyPea = new AttackType();
+NastyPea.name = "Nasty Pea";
+NastyPea.damage = 10;
+NastyPea.range = 10;
+NastyPea.accuracy = 85;
+Squash = new AttackType();
+Squash.name = "Squash";
+Squash.damage = 300;
+Squash.range = 1;
+NastyGatling = new AttackType();
+NastyGatling.name = "Nasty Gatling";
+NastyGatling.damage = 10;
+NastyGatling.shots = 4;
+NastyGatling.range = 10;
+NastyGatling.accuracy = 95;
+NastyGatling.reloadTime = 1;
+Fashion = new AttackType();
+Fashion.name = "Mock";
+Fashion.damage = 1;
+Fashion.shots = 50;
+Fashion.accuracy = 55;
+Fashion.range = 1;
+Fashion.reloadTime = 1;
+Fashion.STUP = 1;
+ConeGun = new AttackType();
+ConeGun.name = "Cone Appétit";
+ConeGun.damage = 20;
+ConeGun.range = 4;
+ConeGun.accuracy = 95;
+ConeGun.reloadTime = 1;
+ConeGun.STUP = 1;
+ImpKing = new Fighter();
+ImpKing.name = "Imp King";
+ImpKing.health = 125;
+ImpKing.permhealth = 125;
+ImpKing.movement = 1.75;
+ImpKing.powerLevel = 5.5;
+ImpKing.height = "22%";
+ImpKing.supports.push(CreateImps);
+ImpKing.attacks.push(ImpWand);
+ImpKing.aliveSprite = "ImpKing.PNG";
+Gravestone = new Fighter();
+Gravestone.name = "Gravestone";
+Gravestone.health = 75;
+Gravestone.permhealth = 75;
+Gravestone.movement = 0;
+Gravestone.powerLevel = 3;
+Gravestone.height = "20%";
+Gravestone.supports.push(GrowZombie);
+Gravestone.aliveSprite = "Gravestone.PNG";
+GigaGarg = new Fighter();
+GigaGarg.name = "Giga Gargantuar";
+GigaGarg.health = 500;
+GigaGarg.permhealth = 500;
+GigaGarg.movement = 1.25;
+GigaGarg.powerLevel = 20;
+GigaGarg.canBeEaten = false;
+GigaGarg.wb = 1.6;
+GigaGarg.height = "43%";
+GigaGarg.supports.push(GigaPhone);
+GigaGarg.attacks.push(clone(PoleSmash),Lightning);
+GigaGarg.aliveSprite = "GigaGarg.PNG";
+Zompea = new Fighter();
+Zompea.name = "Peashooter Zombie";
+Zompea.health = 50;
+Zompea.permhealth = 50;
+Zompea.powerLevel = 1;
+Zompea.wb = 1.2;
+Zompea.height = "24%";
+Zompea.attacks.push(Bite,NastyPea);
+Zompea.aliveSprite = "Zompea.PNG";
+Zomgatling = new Fighter();
+Zomgatling.name = "Gatling Zombie";
+Zomgatling.health = 75;
+Zomgatling.permhealth = 75;
+Zomgatling.powerLevel = 4;
+Zomgatling.wb = 1.2;
+Zomgatling.height = "26%";
+Zomgatling.attacks.push(NastyGatling,Bite);
+Zomgatling.aliveSprite = "Zomgatling.PNG";
+Zomnut = new Fighter();
+Zomnut.name = "Wallnut Zombie";
+Zomnut.health = 150;
+Zomnut.permhealth = 150;
+Zomnut.allergy = "nut";
+Zomnut.powerLevel = 2;
+Zomnut.height = "28%";
+Zomnut.attacks.push(Bite);
+Zomnut.aliveSprite = "Zomnut.PNG";
+Zomsquash = new Fighter();
+Zomsquash.name = "Squash Zombie";
+Zomsquash.health = 50;
+Zomsquash.permhealth = 50;
+Zomsquash.powerLevel = 3;
+Zomsquash.movement = 1.75;
+Zomsquash.height = "27%";
+Zomsquash.attacks.push(Squash);
+Zomsquash.aliveSprite = "Zomsquash.PNG";
+ConeCrab = new Fighter();
+ConeCrab.name = "Cone Crab";
+ConeCrab.health = 10;
+ConeCrab.permhealth = 10;
+ConeCrab.powerLevel = 1;
+ConeCrab.wb = 0.1;
+ConeCrab.movement = 2.5;
+ConeCrab.height = "8%";
+ConeCrab.attacks.push(AnkBite);
+ConeCrab.supports.push(Mitosis,Mitosis2,Mitosis3,Mitosis4);
+ConeCrab.aliveSprite = "ConeCrab.PNG";  
+Coneoisseur = new Fighter();
+Coneoisseur.name = "Cone-oisseur";
+Coneoisseur.health = 50;
+Coneoisseur.permhealth = 50;
+Coneoisseur.powerLevel = 4;
+Coneoisseur.height = "35%";
+Coneoisseur.wb = 0.8;
+Coneoisseur.attacks.push(Fashion,ConeGun);
+Coneoisseur.aliveSprite = "Coneoisseur.PNG"; 
+Coneoisseur5 = clone(Coneoisseur);
+Coneoisseur5.underShield = "";
+Coneoisseur5.aliveSprite = "Coneoisseur5.PNG";
+Coneoisseur4 = clone(Coneoisseur);
+Coneoisseur4.underShield = clone(Coneoisseur5);
+Coneoisseur4.aliveSprite = "Coneoisseur4.PNG";
+Coneoisseur3 = clone(Coneoisseur);
+Coneoisseur3.underShield = clone(Coneoisseur4);
+Coneoisseur3.aliveSprite = "Coneoisseur3.PNG";
+Coneoisseur2 = clone(Coneoisseur);
+Coneoisseur2.underShield = clone(Coneoisseur3);
+Coneoisseur2.aliveSprite = "Coneoisseur2.PNG";
+Coneoisseur.underShield = clone(Coneoisseur2);
 class BossWave {
     constructor() {
         this.name = ""; //name of boss wave
         this.zombies = []; //zombies in boss wave
         this.image = ""; //image for
+        this.imageWidth = 0; //Dr Image, at   
+        this.imageLeft = 0; //1337 Imago St
+        this.availablewaves = []; //what waves the boss wave can appear on
         this.availablecoords = []; //what coordinates the zombies can spawn on
         this.randomizecoords = false; //if the zombies spawn on a random of the given coordinates or if they are always in one spot
         this.theme = ""; //theme to play during the boss wave
     }
-}
+} //3 waves on turn 5, 4 waves on turn 10, 4 waves on turn 15, 3 waves on turn 20, 3 waves on turn 25
 AllImps = new BossWave();
-AllImps.name = "Oops! All Imps";
-AllImps.zombies = [Imp];
-AllImps.image = "ImpGang.PNG";    
+AllImps.name = "Wave of Imps";
+AllImps.zombies = [Imp, ImpKing, clone(Imp)];
+AllImps.image = "ImpGang.PNG";   
+AllImps.imageWidth = "25%";
+AllImps.imageLeft = "80%";
+AllImps.availablewaves = [5,10,15,20,25];
 for (x=4; x<10; x++) {
     for (y=0; y<5; y++) {
         AllImps.availablecoords.push([x,y]);
@@ -1786,6 +2235,85 @@ for (x=4; x<10; x++) {
 }
 AllImps.randomizecoords = true;
 AllImps.theme = "ImpTheme.mp3"; 
+BossWaves.push(AllImps);
+Garg = new BossWave();
+Garg.name = "Gaggling Gargantuars";
+Garg.zombies = [Gargantuar];
+Garg.image = "GargBoss.PNG";
+Garg.imageWidth = "35%";
+Garg.imageLeft = "65%"; //*add  
+Garg.availablewaves = [10];
+Garg.availablecoords = [[5,2],[6,2],[7,2],[8,2]];
+Garg.randomizecoords = true;
+Garg.theme = "GargTheme.mp3"; 
+BossWaves.push(Garg);
+Gargs = new BossWave();
+Gargs.name = "One Big Bad Zombie";
+Gargs.zombies = [GigaGarg];
+Gargs.image = "GigaGargBoss.PNG"; 
+Gargs.imageWidth = "40%";
+Gargs.imageLeft = "60%";
+Gargs.availablewaves = [20];
+Gargs.availablecoords = [[5,2],[6,2],[7,2],[8,2]];
+Gargs.randomizecoords = true;
+Gargs.theme = "GigaGargTheme.mp3"; 
+BossWaves.push(Gargs);
+Graves = new BossWave();
+Graves.name = "Grave Danger";
+Graves.zombies = [clone(Gravestone),clone(Gravestone),clone(Gravestone),clone(Gravestone),clone(Gravestone)];
+Graves.image = "Graves.PNG"; 
+Graves.imageWidth = "30%";
+Graves.imageLeft = "70%";
+Graves.availablewaves = [15];
+Graves.availablecoords = [[9,0],[9,1],[9,2],[9,3],[9,4]];
+Graves.randomizecoords = false;
+Graves.theme = "GraveTheme.mp3"; 
+BossWaves.push(Graves);
+Zombotany = new BossWave();
+Zombotany.name = "Zombotany!";
+Zombotany.zombies = [Zompea,Zomnut,clone(Zompea)];
+Zombotany.image = "Zombotany.PNG";
+Zombotany.imageWidth = "40%";
+Zombotany.imageLeft = "60%";
+Zombotany.availablewaves = [5,10];
+Zombotany.randomizecoords = true;
+for (x=5; x<10; x++) {
+    for (y=0; y<5; y++) {
+        Zombotany.availablecoords.push([x,y]);
+    }
+}
+Zombotany.theme = "ZombotanyTheme.mp3";
+BossWaves.push(Zombotany);
+Zombotany2 = new BossWave();
+Zombotany2.name = "Zombotany!";
+Zombotany2.zombies = [Zomgatling,Zompea,Zomnut,Zomsquash,clone(Zompea)];
+Zombotany2.image = "Zombotany.PNG";
+Zombotany2.imageWidth = "40%";
+Zombotany2.imageLeft = "60%";
+Zombotany2.availablewaves = [15,20,25];
+Zombotany2.randomizecoords = true;
+for (x=5; x<10; x++) {
+    for (y=0; y<5; y++) {
+        Zombotany2.availablecoords.push([x,y]);
+    }
+}
+Zombotany2.theme = "ZombotanyTheme.mp3";
+BossWaves.push(Zombotany2);
+ConeZone = new BossWave();
+ConeZone.name = "The Cone Zone";
+ConeZone.zombies = [ConeCrab,Conehead,clone(ConeCrab),clone(ConeCrab),clone(Conehead),Coneoisseur];
+ConeZone.image = "ConeZone.PNG";
+ConeZone.imageWidth = "35%";
+ConeZone.imageLeft = "65%";
+ConeZone.availablewaves = [5,10,15,25];
+ConeZone.randomizecoords = true;
+for (x=4; x<10; x++) {
+    for (y=0; y<5; y++) {
+        ConeZone.availablecoords.push([x,y]);
+    }
+}
+ConeZone.theme = "ConeZoneTheme.mp3";
+BossWaves.push(ConeZone);
 
 gridx = 9
 gridy = 5
@@ -1841,9 +2369,8 @@ function updategrid() {
             else if (currentx === fighter.coords[0] && currenty === fighter.coords[1] && !(fighter.plant)) {
                 newgi.sprite = "PurpleTile.PNG"
                 newgi.character = fighter;
-                fighterPhysArray[f].style.top = (((30-parseInt(fighter.height))/10)+parseInt(ItemSprite.style.top)-0.088*fighterPhysArray[f].height).toString()+"%";
-                //fighterPhysArray[f].style.top = ((fighterPhysArray[f].getBoundingClientRect().top/36.396)*(((30-parseInt(fighter.height))/10)+parseInt(ItemSprite.style.top)-0.088*fighterPhysArray[f].height)).toString()+"px";
-                fighterPhysArray[f].style.left = ((3*(30-(fighter.wb*parseInt(fighter.height))))+parseInt(ItemSprite.style.left)).toString()+"px";//+0.1*fighter.wb*fighterPhysArray[f].width).toString()+"px";
+                fighterPhysArray[f].style.top = (((30-parseInt(fighter.height))/10)+parseInt(ItemSprite.style.top)-0.088*fighterPhysArray[f].height).toString()+"%";             
+                fighterPhysArray[f].style.left = ((3*(30-(fighter.wb*parseInt(fighter.height))))+parseInt(ItemSprite.style.left)).toString()+"px";
                 zhealtharray[f-1].style.top = parseInt(ItemSprite.style.top).toString()+"%";
                 zhealtharray[f-1].style.left = (parseInt(ItemSprite.style.left)+51.942).toString()+"px";
                 zhealtharray[f-1].innerHTML = fighter.health;
@@ -2039,7 +2566,7 @@ function CheckAttack(zombie, attack) {
             hitarea = true;
         }
         if (hitarea) {
-            if (griditemarray[ia].sprite == "GreenTile.PNG" && attack.TimeUntilReady == 0) {
+            if (griditemarray[ia].sprite == "GreenTile.PNG" && attack.TimeUntilReady <= 0) {
                 return true;
             }
         }
@@ -2049,6 +2576,90 @@ function CheckAttack(zombie, attack) {
         }
     }
     return false;
+}
+function TestSupport(zombie,support) {
+    if (!(CanZAbility[ZombieArray.indexOf(zombie)])) {
+        console.log("you can't abiltu")
+        return;
+    }
+    if (support.TimeUntilReady > 0) { 
+        console.log("it noeed to recharg")
+        return;
+    }
+    willhit = false;
+    summoncount = 0;
+    console.log("make something")
+    if (support.type == "summon") {
+        updatecharactergrid();
+        for (g in griditemarray) {
+            for (s in support.coords) {
+                if (griditemarray[g].codx == zombie.coords[0]+support.coords[s][0] && griditemarray[g].cody == zombie.coords[1]+support.coords[s][1] && griditemarray[g].character == "") {
+                    willhit = true;
+                    summoncount += 1;
+                    if (support.zombie[0] == "Parent") {
+                        NZ = clone(zombie);
+                    }
+                    else {
+                        NZ = clone(support.zombie[Math.floor(Math.random() * support.zombie.length)]);
+                    }
+                    NZ.health = NZ.permhealth;
+                    NZ.coords = [zombie.coords[0]+support.coords[s][0],zombie.coords[1]+support.coords[s][1]];
+                    ZombieArray.push(NZ);
+                    for (a in NZ.attacks) {
+                        NZ.attacks[a].TimeUntilReady = NZ.attacks[a].STUP+1;
+                    }
+                    for (sup in NZ.supports) {
+                        NZ.supports[sup].TimeUntilReady = NZ.supports[sup].STUP+1;
+                    }
+                    prevzposes.push(NZ.coords)
+                    CanZAbility.push(true);
+                    var zombi = document.createElement("img");
+                    zombi.className = "Fighter";
+                    zombi.style.height = NZ.height;
+                    zombi.src = NZ.aliveSprite;
+                    wc.appendChild(zombi);
+                    fighterPhysArray.push(zombi);
+                    zombi.style.transform = "scaleX(1)";
+                    var zhealth = document.createElement("p")
+                    var zhealthbar = document.createElement("img")
+                    if (NZ.underShield != "") {
+                        zhealthbar.src = "ArmorHeartIcon.PNG";
+                    }
+                    else {
+                        zhealthbar.src = "HeartIcon.PNG";
+                    }
+                    zhealthbar.style.position = "absolute";
+                    zhealthbar.style.width = "4%";
+                    zhealthbar.style.zIndex = 9001;
+                    wc.appendChild(zhealthbar);
+                    zhealth.style.position = "absolute";
+                    zhealth.style.fontFamily =  'Marker Felt';
+                    zhealth.style.fontSize = "1.7vw";
+                    zhealth.style.zIndex = 9002;
+                    wc.appendChild(zhealth)
+                    zhealtharray.push(zhealth);
+                    zhealthbararray.push(zhealthbar);
+                    fighterArray.push(NZ);
+                    griditemarray[g].character = NZ;
+                    CheckZindexes();
+                }
+            }
+        }
+    }
+    if (willhit) {
+        CreateConsoleText(zombie.name+" has used "+support.name+".")
+        support.TimeUntilReady = support.reloadTime+1;
+        CanZAbility[ZombieArray.indexOf(zombie)] = false;
+        updategrid();
+    }
+    if (summoncount > 0) {
+        if (summoncount > 1) {
+            CreateConsoleText(zombie.name+" has summoned "+summoncount+" "+NZ.name+"s.")
+        }
+        else {
+            CreateConsoleText(zombie.name+" has summoned "+summoncount+" "+NZ.name+".")
+        }
+    }
 }
 function TestAttack(zombie, attack) {
     if (!(CanZAbility[ZombieArray.indexOf(zombie)])) {
@@ -2100,7 +2711,7 @@ function TestAttack(zombie, attack) {
                 phygriditems[ia].src = "RedTile.PNG";
                 CreateConsoleText(zombie.name+" has used "+attack.name+".")
                 for (shot = 0; shot < attack.shots; shot++) {
-                    if (randomint(0, 100) > attack.accuracy) {
+                    if (Math.random()*100 > attack.accuracy) {
                         missedshots += 1;
                         if (attack.shots == 1) {
                             CreateConsoleText(zombie.name+" has missed.");
@@ -2114,7 +2725,7 @@ function TestAttack(zombie, attack) {
                     planthealth.innerHTML = (parseInt(planthealth.innerHTML) - attack.damage*(attack.shots-missedshots)).toString();
                     CreateConsoleText(zombie.name+" has hit "+currentPlant.name+" for "+(attack.damage*(attack.shots-missedshots)).toString()+" damage.",true);
                     if (!(CheckForLoss())) {
-                        if (randomint(0, 100) < attack.stunChance) {
+                        if (Math.random()*100 < attack.stunChance) {
                             CreateConsoleText(zombie.name+" has stunned "+currentPlant.name+" for one turn.");
                             if (currentPlant.chewing) {
                                 currentPlant.aliveSprite = "FrozenChewy.PNG";
@@ -2248,17 +2859,21 @@ function CheckZindexes() {
       fighterPhysArray[fighterArray.indexOf(fyc)].style.zIndex = (parseInt(zindex) + parseInt(yc));
     }
 }
-function CalculateMoves(zombie) {
-    TestMoves = [[1,0],[-1,0],[0,1],[0,-1]];
+function CalculateMoves(zombie) { 
+    TestMoves = [[-1,0],[1,0],[0,1],[0,-1]];
     //If zombie can already hit chomper, do normal move
     //If zombie can move and then hit chomper, do that move
     //if zombie cannot hit chomper from any move, do normal move
     MA = false;
     MAM = [0,0];
     AA = false;
+    SM = true;
     for (a in zombie.attacks) {
         if (CheckAttack(zombie,zombie.attacks[a])) {
             AA = true;
+            if (a == 0) {
+                SM = false;
+            }
             break;
         }
     }
@@ -2297,14 +2912,14 @@ function CalculateMoves(zombie) {
             break;
         }
     }
-    if (AA ||(!AA && !MA)) {
+    if (SM && (AA ||(!AA && !MA))) {
         if (zombie.coords[1] != currentPlant.coords[1]) {
-            if (Math.random() > (zombie.coords[0]/(currentPlant.coords[1]-zombie.coords[1]))) {
-                if (!(MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])])) && zombie.coords[0] != currentPlant.coords[0]) {
+            if (Math.abs(currentPlant.coords[1]-zombie.coords[1]) > 1) {
+                if (!(MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])]))) {
                     if (zombie.coords[0] > currentPlant.coords[0]) {
                         MoveZombie(zombie, [-1,0])
                     }
-                    else {
+                    else if (zombie.coords[0] < currentPlant.coords[0]) {
                         MoveZombie(zombie, [1,0]) 
                     }
                 } 
@@ -2316,25 +2931,46 @@ function CalculateMoves(zombie) {
                     }
                 }
                 else if (zombie.coords[0] < currentPlant.coords[0]) {
-                    if (!(MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])]))) {
-                        MoveZombie(zombie, [1,0])
+                    if (!(MoveZombie(zombie, [1,0]))) {
+                        MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])])
                     }
                 }
                 else {
-                    MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])])
+                    if (!(MoveZombie(zombie,[0, RoundToOne(currentPlant.coords[1]-zombie.coords[1])]))) {
+                        if (Math.random() > 0.5) { 
+                            MoveZombie(zombie,[-1, 0])
+                        }
+                        else {
+                            MoveZombie(zombie,[1, 0])
+                        }
+                    }
                 }
             }
         }
         else {
-            if (zombie.coords[0] > currentPlant.coords[0]) {
-                MoveZombie(zombie, [-1,0])
+            if (zombie.coords[0] > currentPlant.coords[0]) { 
+                if (!(MoveZombie(zombie, [-1,0]))) { 
+                    if (Math.random() > 0.5) { 
+                        MoveZombie(zombie,[0, -1])
+                    }
+                    else {
+                        MoveZombie(zombie,[0, 1])
+                    }
+                }
             }
             else {
-                MoveZombie(zombie, [1,0])
+                if (!(MoveZombie(zombie, [1,0]))) {
+                    if (Math.random() > 0.5) { 
+                        MoveZombie(zombie,[0, -1])
+                    }
+                    else {
+                        MoveZombie(zombie,[0, 1])
+                    }
+                }
             }
         }
     }
-    else if (MA) {
+    else if (MA && SM) {
         MoveZombie(zombie, MAM);
     }
     CheckZindexes();
@@ -2342,32 +2978,39 @@ function CalculateMoves(zombie) {
 function MoveZombie(zombie, direction) {
     if (zombie.movesLeft >= 1) {
         zombie.movesLeft -= 1;
-        createtext = true;
         prevzposes[ZombieArray.indexOf(zombie)] = zombie.coords.slice(0);
         zombie.coords[0] += direction[0];
         zombie.coords[1] += direction[1];
+        // if (currentPlant.coords[0] > 1) {
+        // if (currentPlant.coords[1] > 0) {
+        // if (currentPlant.coords[0] < gridx) {
+        // if (currentPlant.coords[1] < gridy-1
+        if (zombie.coords[0] <= 0 || zombie.coords[0] > gridx || zombie.coords[1] < 0 || zombie.coords[1] >= gridy) {
+            zombie.coords[0] = prevzposes[ZombieArray.indexOf(zombie)][0]; 
+            zombie.coords[1] = prevzposes[ZombieArray.indexOf(zombie)][1];
+            zombie.movesLeft += 1;
+            updategrid();
+            return false;
+        }
         if (CheckIfCollision("Zombie",zombie)) {
             zombie.movesLeft += 1;
             updategrid();
             return false;
         }
-        if (createtext) {
-            if (direction[1] > 0) {
-                CreateConsoleText(zombie.name+" has moved 1 unit down.",true)
-            }
-            else if (direction[1] < 0) {
-                CreateConsoleText(zombie.name+" has moved 1 unit up.",true)
-            }
-            if (direction[0] > 0) {
-                CreateConsoleText(zombie.name+" has moved 1 unit right.",true)
-            }
-            else if (direction[0] < 0) {
-                CreateConsoleText(zombie.name+" has moved 1 unit left.",true)
-            }
+        if (direction[1] > 0) {
+            CreateConsoleText(zombie.name+" has moved 1 unit(s) down.",true)
+        }
+        else if (direction[1] < 0) {
+            CreateConsoleText(zombie.name+" has moved 1 unit(s) up.",true)
+        }
+        if (direction[0] > 0) {
+            CreateConsoleText(zombie.name+" has moved 1 unit(s) right.",true)
+        }
+        else if (direction[0] < 0) {
+            CreateConsoleText(zombie.name+" has moved 1 unit(s) left.",true)
         }
         if (zombie.movesLeft >= 1) {
             CalculateMoves(zombie);
-            createtext = false;
         }
         updategrid();
         return true;
@@ -2384,6 +3027,7 @@ function RoundToOne(num) {
 function ZombieTurn(z) {
     zombie = ZombieArray[z];
     CanZAbility[z] = true;
+    updategrid();
     setTimeout(function()  {
         CreateConsoleText(zombie.name+" is thinking..");
         if (zombie.stunned) {
@@ -2393,6 +3037,11 @@ function ZombieTurn(z) {
                 for (a in zombie.attacks) {
                     if (zombie.attacks[a].TimeUntilReady > 0) {
                         zombie.attacks[a].TimeUntilReady -= 1;
+                    }
+                }
+                for (s in zombie.supports) {
+                    if (zombie.supports[s].TimeUntilReady > 0) {
+                        zombie.supports[s].TimeUntilReady -= 1;
                     }
                 }
                 fighterPhysArray[fighterArray.indexOf(zombie)].src = (fighterPhysArray[fighterArray.indexOf(zombie)].src).split("/")[(fighterPhysArray[fighterArray.indexOf(zombie)].src).split("/").length-1].substring(4);
@@ -2426,10 +3075,11 @@ function ZombieTurn(z) {
                                 currentPlant.chewingtime -= 1;
                                 if (currentPlant.chewingtime == 0) {
                                     currentPlant.chewing = false;
+                                    if (currentPlant.allergy == false) {
                                     currentPlant.aliveSprite = "ArmorChomper.PNG";
                                     fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "ArmorChomper.PNG";
                                     CreateConsoleText("Armor Chomper has finished chewing.");
-                                    if (!(CriticalStage)) {
+                                    if (!(CriticalStage) && !(IsBossWave)) {
                                         PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                         MusicFade(ZombieTurnTheme,PlantTurnTheme);
                                     }
@@ -2444,9 +3094,13 @@ function ZombieTurn(z) {
                                     }, 500)
                                     currentPlant.aliveSprite = "ArmorChomper.PNG";
                                     fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "ArmorChomper.PNG";
+                                    }
+                                    else {
+                                        DeathByAllergy(currentPlant.allergy);
+                                    }
                                 }
                                 else {
-                                    if (!(CriticalStage)) {
+                                    if (!(CriticalStage) && !(IsBossWave)) {
                                         PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                         MusicFade(ZombieTurnTheme,PlantTurnTheme);
                                     }
@@ -2463,7 +3117,7 @@ function ZombieTurn(z) {
                             }, turntime);
                         }
                         else {
-                            if (!(CriticalStage)) {
+                            if (!(CriticalStage) && !(IsBossWave)) {
                                 PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                 MusicFade(ZombieTurnTheme,PlantTurnTheme);
                             }
@@ -2498,8 +3152,16 @@ function ZombieTurn(z) {
                         zombie.attacks[a].TimeUntilReady -= 1;
                     }
                 }
+                for (s in zombie.supports) {
+                    if (zombie.supports[s].TimeUntilReady > 0) {
+                        zombie.supports[s].TimeUntilReady -= 1;
+                    }
+                }
                 CalculateMoves(zombie);
                 setTimeout(function() {
+                    for (s in zombie.supports) {
+                        TestSupport(zombie,zombie.supports[s]); 
+                    }
                     for (a in zombie.attacks) {
                         TestAttack(zombie,zombie.attacks[a]); 
                         if (StopTurn) {
@@ -2538,10 +3200,11 @@ function ZombieTurn(z) {
                                         currentPlant.chewingtime -= 1;
                                         if (currentPlant.chewingtime == 0) {
                                             currentPlant.chewing = false;
+                                            if (currentPlant.allergy == false) {
                                             currentPlant.aliveSprite = "ArmorChomper.PNG";
                                             fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "ArmorChomper.PNG";
                                             CreateConsoleText("Armor Chomper has finished chewing.");
-                                            if (!(CriticalStage)) {
+                                            if (!(CriticalStage) && !(IsBossWave)) {
                                                 PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                                 MusicFade(ZombieTurnTheme,PlantTurnTheme);
                                             }
@@ -2556,9 +3219,13 @@ function ZombieTurn(z) {
                                             }, 500)
                                             currentPlant.aliveSprite = "ArmorChomper.PNG";
                                             fighterPhysArray[fighterArray.indexOf(currentPlant)].src = "ArmorChomper.PNG";
+                                            }
+                                            else {
+                                                DeathByAllergy(currentPlant.allergy);
+                                            }
                                         }
                                         else {
-                                            if (!(CriticalStage)) {
+                                            if (!(CriticalStage) && !(IsBossWave)) {
                                                 PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                                 MusicFade(ZombieTurnTheme,PlantTurnTheme);
                                             }
@@ -2575,7 +3242,7 @@ function ZombieTurn(z) {
                                     }, turntime);
                                 }
                                 else {
-                                    if (!(CriticalStage)) {
+                                    if (!(CriticalStage) && !(IsBossWave)) {
                                         PlantTurnTheme.sound.currentTime = ZombieTurnTheme.sound.currentTime;
                                         MusicFade(ZombieTurnTheme,PlantTurnTheme);
                                     }
@@ -2680,8 +3347,12 @@ document.addEventListener('keydown', function(event) {
                 if (CheckIfCollision("plant","")) {
                     return;
                 }
+                CreateConsoleText(currentPlant.name+" has moved 1 unit to the left.");
+            }
+            else {
+                CreateConsoleText("You cannot go outside of the grid.",false,false);
+                return;
             }        
-            CreateConsoleText(currentPlant.name+" has moved 1 unit to the left.");
         }
         else if(event.keyCode == 38) {
             if (currentPlant.coords[1] > 0) {
@@ -2689,8 +3360,12 @@ document.addEventListener('keydown', function(event) {
                 if (CheckIfCollision("plant","")) {
                     return;
                 }
+                CreateConsoleText(currentPlant.name+" has moved 1 unit up.");
             }
-            CreateConsoleText(currentPlant.name+" has moved 1 unit up.");
+            else {
+                CreateConsoleText("You cannot go outside of the grid.",false,false);
+                return;
+            } 
         }
         else if(event.keyCode == 39) {
             if (currentPlant.coords[0] < gridx) {
@@ -2698,8 +3373,12 @@ document.addEventListener('keydown', function(event) {
                 if (CheckIfCollision("plant","")) {
                     return;
                 }
+                CreateConsoleText(currentPlant.name+" has moved 1 unit to the right.");
             }
-            CreateConsoleText(currentPlant.name+" has moved 1 unit to the right.");
+            else {
+                CreateConsoleText("You cannot go outside of the grid.",false,false);
+                return;
+            } 
         }
         else if(event.keyCode == 40) {
             if (currentPlant.coords[1] < gridy-1) {
@@ -2707,8 +3386,12 @@ document.addEventListener('keydown', function(event) {
                 if (CheckIfCollision("plant","")) {
                     return;
                 }
+                CreateConsoleText(currentPlant.name+" has moved 1 unit down.");
             }
-            CreateConsoleText(currentPlant.name+" has moved 1 unit down.");
+            else {
+                CreateConsoleText("You cannot go outside of the grid.",false,false);
+                return;
+            } 
         }
         if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40) {
             CanMove = false;
