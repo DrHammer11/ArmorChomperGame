@@ -2990,7 +2990,7 @@ JadeCac.primaries = [Shatter];
 JadeCac.aliveSprite = "JadeCactus.PNG";
 JadeCac.iconSprite = "JadeRight.PNG";
 currentPlant = AC;
-plantArray = [AC,Peashoot,JadeCac];
+plantArray = [AC,Peashoot];
 class CharOrAbilityPerk {
     constructor() {
         this.name = "";  
