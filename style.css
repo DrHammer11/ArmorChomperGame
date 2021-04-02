@@ -11,12 +11,20 @@
 
 #AttackLabel {
   font-size:3vw;
-  font-family: 'Marker Felt'
+  font-family: 'Marker Felt';
+  color: black;
+  -webkit-text-fill-color: white; 
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
 }
 
 #TurnCounter {
   font-size:2.4vw;
   font-family: 'Marker Felt';
+  color: black;
+  -webkit-text-fill-color: white; 
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
   position:absolute;
   left:30%; 
   top:93%;
@@ -41,6 +49,27 @@
   z-index: 3000;
 }
 
+#ViewPerks {
+  position:absolute;
+  top: 75%;
+  left: 1%;
+  font-size:1.8vw;
+  font-family: 'Marker Felt';
+  z-index: 9000;
+}
+
+.ViewPerk {
+  position:absolute; 
+  left:44%; 
+  top:90%;
+  font-family: 'Marker Felt';
+  color: black;
+  -webkit-text-fill-color: white; 
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
+  font-size: 2.4vw;
+}
+
 .consoletext {
   font-size:1.6vw;
   font-family: 'Marker Felt';
@@ -61,7 +90,7 @@
   top: 14%;
   left: 42%;
   font-size:1.5vw;
-  font-family: 'Marker Felt';
+  font-family: 'Marker Felt';  
   z-index: 9000;
 }
 
@@ -78,7 +107,7 @@
 
 .AbilityButton {
   font-size:2vw;
-  font-family: 'Marker Felt'
+  font-family: 'Marker Felt';
 }
 
 #AbilityButtons {
@@ -105,6 +134,7 @@
     padding: 1.4vw;
     border: 1px solid #888;
     width: 80%;
+    background-color: rgb(219, 219, 219)
   }
 
   .MessageText {
@@ -135,7 +165,7 @@
   
   /* The Close Button */
   .close {
-    color: #aaaaaa;
+    color: #5f5f5f;
     float: right;
     font-size: 2.8vw;
     font-weight: bold;
@@ -171,6 +201,10 @@
     position: absolute;
     font-size:2.2vw;
     font-family: 'Marker Felt';
+    color: black;
+    -webkit-text-fill-color: white; 
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
     left: 2%;
     top: 0%;
   }
@@ -189,6 +223,10 @@
     position:absolute;
     font-size:1.7vw;
     font-family: 'Marker Felt';
+    color: black;
+    -webkit-text-fill-color: white; 
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
     top:25%;
     left:35%
   }
@@ -197,13 +235,17 @@
     position:absolute; 
     top:95%;
     font-size:1.4vw;
-    font-family: 'Marker Felt'
+    font-family: 'Marker Felt';
+    color: black;
+    -webkit-text-fill-color: white; 
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
   }
   
     #start-button {
       position:absolute; 
       left:40%; 
-      top:50%;
+      top:40%;
       font-family: 'Marker Felt';
       font-size: 2.4vw;
     }
@@ -211,14 +253,22 @@
     #load-button {
       position:absolute; 
       left:43%; 
-      top:60%;
+      top:50%;
       font-family: 'Marker Felt';
       font-size: 2.4vw;
     }
   
     #how-to-play {
       position:absolute; 
-      left:42%; 
+      left:42.5%; 
+      top:60%;
+      font-family: 'Marker Felt';
+      font-size: 2.4vw;
+    }
+
+    #almanac-button {
+      position:absolute; 
+      left:43.5%; 
       top:70%;
       font-family: 'Marker Felt';
       font-size: 2.4vw;
@@ -278,7 +328,31 @@
 
 #title {
     font-size:3vw;
-    font-family: 'Marker Felt'
+    font-family: 'Marker Felt';
+    color: black;
+    -webkit-text-fill-color: white; 
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+}
+
+.ChoosePerk {
+  display: none; /* Hidden by default */
+  position: absolute; /* Stay in place */
+  padding-top: 0.5vw; /* Location of the box */
+  z-index: 999999999;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+.PerkMessage {
+  background-color: #fefefe;
+  padding: 1.4vw;
+  border: 1px solid #888;
+  min-width: 100%;
+  min-height: 680px;
+  background-image: url(PerkBackground.PNG)
 }
 
 .HTP {
@@ -295,6 +369,48 @@
   background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
 }
 
+.Almanac {
+  display: none; /* Hidden by default */
+  position: absolute; /* Stay in place */
+  z-index: 15;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+.AlmanacMessage {
+  background-color: #fefefe;
+  padding: 1.4vw;
+  border: 1px solid #888;
+  width: 80%;
+  min-width: 65%;
+  background-image: url(AlmanacBackground.PNG)
+}
+
+.AlmanacDesc {
+  display: none; /* Hidden by default */
+  position: absolute; /* Stay in place */
+  padding-top: 0vw; /* Location of the box */
+  z-index: 20;
+  left: 67%;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+}
+
+.AlmanacDescMessage {
+  background-color: #fefefe;
+  padding: 1.4vw;
+  border: 1px solid #888;
+  min-width: 30%;
+  min-height: 100%;
+  background-image: url(AlmanacDescBackground.PNG)
+}
+
+/* Modal Content */
+
 #MenuBlocker {
   position: absolute;
   height: 100%;
@@ -306,7 +422,7 @@
   position:absolute; 
   left:45%; 
   top:50%;
-  font-family: 'Marker Felt';
+  font-family: 'Marker Felt'; 
   font-size: 2.4vw;
   z-index: 9;
 }
@@ -334,7 +450,7 @@
   width: 100%;
   height: 10px;
   border-radius: 5px;
-  background: #d3d3d3;
+  background: #999999;
   outline: none;
   -webkit-transition: .2s;
   transition: opacity .2s;
@@ -355,5 +471,47 @@
   height: 100%;
   border: 0;
   background: url('SunflowerSlider.PNG');
+  cursor: pointer;
+}
+
+
+.PlantAlmanac {
+  position: absolute;
+  width: 9%;
+}
+
+.PlantImgAlmanac {
+  position: absolute;
+  pointer-events:none;
+}
+
+.ZombAlmanac {
+  position: absolute;
+  width: 9%;
+  z-index: 16;
+}
+
+
+.ZombImgAlmanac {
+  position: absolute;
+  /* height: 125px; */
+  pointer-events:none;
+  z-index: 17;
+}
+
+.AlmanacFrame {
+  position: absolute;
+  width: 14%;
+  z-index: 19;
+  pointer-events:none;
+}
+
+button { 
+  background-color: darkcyan;
+  color: white;
+  padding: 0.5vw 1vw;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
   cursor: pointer;
 }
